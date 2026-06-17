@@ -306,15 +306,30 @@ try (BufferedWriter bw = new BufferedWriter(
 
 | 方法 | 参数 | 返回值 | 说明 | 注意事项 |
 |------|------|--------|------|----------|
-| ⭐ `new PrintWriter(new FileWriter(path, true))` | `Writer` | PrintWriter | 包装字符写流 | 第二个参数可传 `true` 开启自动 flush |
+| ⭐ `new PrintWriter(File file, Charset charset)` | `File, Charset` | PrintWriter | 直接指定文件和编码 | Java 10+，无需 FileWriter |
+| ⭐ `new PrintWriter(new OutputStreamWriter(new FileOutputStream(path), StandardCharsets.UTF_8))` | `Writer` | PrintWriter | 桥梁流链，跨平台不乱码 | 所有 Java 版本通用 |
+| `new PrintWriter(new FileWriter(path))` | `String` → `Writer` | PrintWriter | 通过 FileWriter 打开 | 编码坑：FileWriter 用系统默认编码 |
 | ⭐ `println(String)` | `String` | `void` | 写一行 + 换行 | 相当于 BufferedWriter 的 write + newLine |
 | `printf(String format, Object... args)` | 格式化字符串 | `void` | 格式化写入 | 跟 `System.out.printf` 语法一样 |
 
 ```java
-// 一行搞定：打开 + 追加 + 自动 flush
-try (PrintWriter pw = new PrintWriter(new FileWriter("log.txt", true))) {
-    pw.println("交易完成");  // 一行 = write + newLine
-    pw.printf("金额: %.2f%n", 199.99);  // 格式化写入
+// ❌ 简单但危险：FileWriter 用系统默认编码
+try (PrintWriter pw = new PrintWriter(new FileWriter("log.txt"))) {
+    pw.println("中文内容");   // Windows GBK，Mac 打开乱码
+}
+
+// ✅ 推荐：PrintWriter + File + Charset（Java 10+）
+try (PrintWriter pw = new PrintWriter(new File("log.txt"), StandardCharsets.UTF_8)) {
+    pw.println("交易完成");
+    pw.printf("金额: %.2f%n", 199.99);
+}
+
+// ✅ 等价写法：桥梁流链（所有 Java 版本通用）
+try (PrintWriter pw = new PrintWriter(
+        new OutputStreamWriter(
+            new FileOutputStream("log.txt"),   // false = 覆盖
+            StandardCharsets.UTF_8))) {
+    pw.println("交易完成");
 }
 ```
 

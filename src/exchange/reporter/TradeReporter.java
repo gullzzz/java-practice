@@ -8,5 +8,34 @@ package exchange.reporter;
 // TODO: 添加私有方法：private void writeToFile(String content, String path)
 //         用 PrintWriter 写入文件
 
-public class TradeReporter {
+import exchange.model.Trade;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+public abstract class TradeReporter {
+    public final void generate(List<Trade> trades, String outputPath) throws IOException {
+        String content=builtContent(trades);
+        writeToFile(content,outputPath);
+    }
+    protected abstract String builtContent(List<Trade>trades);
+    private void writeToFile(String content,String path) throws IOException {
+        File f=new File(path);
+        if (!f.exists()) {
+            if (f.getParentFile() != null) {
+                f.getParentFile().mkdirs();
+            }
+            f.createNewFile();
+        }
+
+        try(PrintWriter pw= new PrintWriter (new OutputStreamWriter(new FileOutputStream(f,false), StandardCharsets.UTF_8 ))) {
+            pw.println(content);
+        }
+
+
+    }
+
+
+
 }

@@ -23,7 +23,7 @@ public class Trade {
 
     @Override
     public String toString() {
-        return getName() +"|"+getAmount()+"|"+getStatus()+"|"+getDate();
+        return getName() +"|"+getAmount()+"|"+getStatus().getLabel()+"|"+getDate();
     }
 
     public String getName() {

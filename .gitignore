@@ -19,3 +19,7 @@ Thumbs.db
 out/
 build/
 target/
+
+# Generated reports
+report.txt
+detail_report.txt

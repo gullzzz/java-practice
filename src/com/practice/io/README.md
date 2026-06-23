@@ -501,7 +501,106 @@ try (FileReader fr = new FileReader("in.txt");    // 先创建
 
 ---
 
-## 八、面试官视角
+## 七、数据流：读写基本数据类型
+
+**定义**：`DataInputStream` / `DataOutputStream` 是字节流的包装类，提供按 Java 基本类型（int/long/double/boolean/UTF 字符串等）读写的方法。
+
+**解决问题/用途**：`FileOutputStream` 只能写 byte，如果要把 `int age = 25` 写入文件，你得手动拆成 4 个字节。DataOutputStream 一个 `writeInt(25)` 搞定——它负责把 Java 类型转为固定格式的字节序列。
+
+### 常用方法速查
+
+| 方法 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| ⭐ `writeInt(int v)` | 写入的值 | `void` | 写入 4 字节 int |
+| `writeLong(long v)` | 写入的值 | `void` | 写入 8 字节 long |
+| `writeDouble(double v)` | 写入的值 | `void` | 写入 8 字节 double |
+| `writeBoolean(boolean v)` | 写入的值 | `void` | 写入 1 字节 boolean |
+| `writeUTF(String s)` | 写入的字符串 | `void` | 写入 UTF-8 编码的字符串 |
+| ⭐ `readInt()` | 无 | `int` | 读取 4 字节转为 int |
+| `readUTF()` | 无 | `String` | 读取 UTF-8 字符串 |
+
+```java
+// 写入
+try (DataOutputStream dos = new DataOutputStream(
+        new BufferedOutputStream(new FileOutputStream("data.bin")))) {
+    dos.writeInt(42);
+    dos.writeDouble(3.14);
+    dos.writeUTF("魔法交易所");
+}
+
+// 读取（顺序必须和写入一致！）
+try (DataInputStream dis = new DataInputStream(
+        new BufferedInputStream(new FileInputStream("data.bin")))) {
+    int id = dis.readInt();          // → 42
+    double price = dis.readDouble(); // → 3.14
+    String name = dis.readUTF();     // → "魔法交易所"
+}
+```
+
+> ⚠️ **读写顺序必须一致**——先写 int 就先读 int，否则数据错乱。
+
+---
+
+## 八、对象流：序列化与反序列化
+
+**定义**：`ObjectOutputStream` / `ObjectInputStream` 可以将整个 Java 对象（包括对象嵌套关系）转为字节序列写入文件，再读回来恢复为对象。被序列化的类必须实现 `java.io.Serializable` 接口。
+
+**解决问题/用途**：要保存的不只是 int 和 String——是整个 `Trade` 对象、`List<Trade>`、甚至嵌套的 `Map<String, List<Trade>>`。对象流自动递归处理所有字段，一个 `writeObject(list)` 就能把整张列表持久化。
+
+### Serializable 接口
+
+```java
+public class Trade implements java.io.Serializable {
+    // Serializable 是个"标记接口"——没有方法，只是告诉 JVM"这个类可以序列化"
+    private static final long serialVersionUID = 1L;  // 版本号，确保兼容性
+    // ... 字段和方法
+}
+```
+
+### 核心方法
+
+| 方法 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| ⭐ `writeObject(Object obj)` | 要写入的对象 | `void` | 将对象（含所有引用）写入流 |
+| ⭐ `readObject()` | 无 | `Object` | 读取对象，需强转回原类型 |
+| `transient` 关键字 | — | — | 修饰的字段**不参与序列化** |
+
+```java
+// 序列化：对象 → 文件
+List<Trade> trades = List.of(new Trade(...), new Trade(...));
+try (ObjectOutputStream oos = new ObjectOutputStream(
+        new BufferedOutputStream(new FileOutputStream("trades.ser")))) {
+    oos.writeObject(trades);
+}
+
+// 反序列化：文件 → 对象
+try (ObjectInputStream ois = new ObjectInputStream(
+        new BufferedInputStream(new FileInputStream("trades.ser")))) {
+    List<Trade> loaded = (List<Trade>) ois.readObject();
+    System.out.println("加载了 " + loaded.size() + " 条交易");
+}
+```
+
+### 关键规则
+
+1. **序列化的类必须实现 `Serializable`**，否则抛 `NotSerializableException`
+2. **`transient` 字段不序列化**——密码、临时缓存等敏感/可重算的字段用这个修饰
+3. **`serialVersionUID`** 是版本兼容性标识——不写 IDE 会警告，修改类结构后反序列化可能失败
+4. **`static` 字段不序列化**——静态字段属于类，不属于对象
+
+> ⚠️ 对象流的字节格式是 Java 私有的，不能跨语言。跨语言（JSON/XML/Protobuf）不在这章讨论。
+
+### 面试官视角（数据流/对象流）
+
+> **Q：Serializable 接口怎么用？为什么它没有方法？**
+> 实现 `Serializable` 即可，它是"标记接口"——JVM 通过 `instanceof Serializable` 判断能否序列化，不需要实现任何方法。
+
+> **Q：transient 关键字的作用？**
+> 标记某字段不参与序列化。常见于密码、验证码、可从其他字段计算得出的缓存值。反序列化后 transient 字段为默认值（null/0/false）。
+
+---
+
+## 九、面试官视角
 
 | 常见问法 | 回答要点 |
 |---------|---------|

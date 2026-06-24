@@ -1,4 +1,4 @@
-package com.practice.thread;
+package com.practice.thread.basics;
 
 /**
  * 【魔法交易所·并发升级】挑战

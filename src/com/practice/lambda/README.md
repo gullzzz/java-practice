@@ -45,6 +45,33 @@ Collections.sort(list, (a, b) -> a.length() - b.length());
 
 ---
 
+### 方法引用（`::`）— Lambda 的进一步简写
+
+**定义：** 当 Lambda 体里只是**原封不动地调用一个已存在的方法**（参数直接传进去、结果直接返回），就可以用 `::` 省略掉参数和箭头。
+
+**等价关系（三者完全一样）：**
+
+```java
+(a, b) -> a + b                 // 1. 直接写表达式
+(a, b) -> Integer.sum(a, b)     // 2. Lambda 调用静态方法 sum
+Integer::sum                    // 3. 方法引用：把"参数原样传给 sum"缩写掉
+```
+
+> 因为 `Integer.sum(int a, int b)` 是静态方法，作用就是返回 `a + b`。`Integer::sum` 在 `ConcurrentHashMap.merge` 里常用来做原子累加。
+
+**四种形式速查表：**
+
+| 形式 | 写法 | 等价 Lambda | 典型例子 |
+|------|------|-------------|----------|
+| 类::静态方法 | `Integer::sum` | `(a,b) -> Integer.sum(a,b)` | `Math::max`、`Integer::sum` |
+| 对象::实例方法 | `obj::method` | `(x) -> obj.method(x)` | `System.out::println` |
+| 类::实例方法 | `String::length` | `(s) -> s.length()` | `String::length` |
+| 类::new（构造引用） | `ArrayList::new` | `() -> new ArrayList()` | 配合 Stream 收集 |
+
+**一句话判断能不能用 `::`：** 看 Lambda 的入参，是不是**正好被原样传给了那个方法**。是，就能缩写；中间还夹了别的运算（如 `(a,b) -> a*b + 1`），就不能用。
+
+---
+
 ## 三、函数式接口 — Lambda 的"容器"
 
 Lambda 本身没有类型——`var x = (a, b) -> a - b;` **编译报错**。它必须赋值给一个**函数式接口**。

@@ -1,4 +1,4 @@
-package com.practice.thread.sync;
+package com.practice.thread.t03_sync;
 
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;

@@ -1,4 +1,4 @@
-package com.practice.thread.pool;
+package com.practice.thread.t02_pool;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;

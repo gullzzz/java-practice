@@ -1,4 +1,4 @@
-package com.practice.thread.concurrent;
+package com.practice.thread.t04_concurrent;
 
 import java.util.HashMap;
 import java.util.Map;

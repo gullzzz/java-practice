@@ -1,4 +1,4 @@
-package com.practice.thread.basics;
+package com.practice.thread.t01_basics;
 
 import java.util.concurrent.ExecutorService;
 

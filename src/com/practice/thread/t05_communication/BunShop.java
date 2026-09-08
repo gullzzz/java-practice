@@ -1,4 +1,4 @@
-package com.practice.thread.communication;
+package com.practice.thread.t05_communication;
 
 import java.util.LinkedList;
 

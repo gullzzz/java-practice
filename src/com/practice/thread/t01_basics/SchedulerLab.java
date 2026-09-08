@@ -1,4 +1,4 @@
-package com.practice.thread.basics;
+package com.practice.thread.t01_basics;
 
 /**
  * 【魔法交易所·VIP调度实验室】挑战

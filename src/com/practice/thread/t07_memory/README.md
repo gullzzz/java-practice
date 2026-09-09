@@ -91,6 +91,95 @@ public class ShutdownFlag {
 
 ### 经典场景 2：双重检查锁（DCL）单例里的 volatile
 
+> **这段代码在干什么？——"单例模式"：一个类全程序只允许存在一个实例。**
+> 典型场景：① 全局配置类（启动读一次配置文件，所有模块共用）② 数据库连接池（全程序一个池，大家借连接）③ 日志器 Logger（所有代码写进同一个日志目的地）④ 线程池（统一管理线程资源）。
+> 共性一句话：**全局只需要一份、创建成本高、状态必须一致**。所以构造器设成 `private` 堵死 `new`，只留 `getInstance()` 一个入口。
+
+下面按"从零到一"的顺序，一步步推出这段代码——每一步都说清"为什么要下一步"。
+
+#### 第 0 步：单例对象的一生（先建立直觉）
+
+`new Config()` 这件事，全程序**只发生一次**。看时间线：
+
+```
+程序启动             instance = null
+第 1 次调用          是 null → new 出对象 → instance 指向它（从此不再 null）
+第 2 次调用          不是 null → 不 new，直接返回同一个
+第 3 次…第 100 万次   都不是 null → 都返回同一个
+```
+
+> **关键认知：`if (instance == null)` 这个判断，第一次是 true，之后永远是 false。** 对象建好之后，后面的调用都是"拿现成的"——这就是"早就建好了"的意思。
+
+#### 第 1 步：最笨的写法——每次进来都上锁
+
+```java
+public static Config getInstance() {
+    synchronized (Config.class) {          // 每次调用都要排队进锁
+        if (instance == null) {
+            instance = new Config();
+        }
+    }
+    return instance;
+}
+```
+
+这么写**能保证单例（正确）**，但慢：对象早就建好了，每个线程还是得排队进门，进去才发现"哦，早建好了"，又空手出来。
+
+> **比喻**：图书馆只有一本《Java 圣经》。这个写法 = 每个人借书都得先去柜台排队登记，排到了才被告知"书就在书架"。书一直躺着，人天天排长队。
+
+#### 第 2 步：加外层 if——让"有书的人"别排队
+
+```java
+public static Config getInstance() {
+    if (instance == null) {                // "书还没上架"才需要去办上架
+        synchronized (Config.class) {
+            instance = new Config();
+        }
+    }
+    return instance;                       // 书已上架，直接拿
+}
+```
+
+外层 if 的方向（别搞反）：
+
+| instance 的状态 | `if (instance == null)` 结果 | 动作 |
+|----------------|------------------------------|------|
+| 还是 null（书没上架） | true | **进去**排队上架 |
+| 已建好（书已上架） | false | **跳过**排队，直接 return 拿 |
+
+> 所以是"**没书的人进去上架，有书的人直接拿**"——门口挂块"书已上架"的牌子，大多数人瞄一眼直接走，不排队。
+
+#### 第 3 步：加内层 if——防止排队进去的人重复 new
+
+第 2 步有个漏洞：可能**好几个人同时发现"书没上架"**（都通过了外层 if），一起排队进锁。第一个进去的人 new 好了；后面的人进门后如果不再看一眼，会又 new 一个，把前面的覆盖掉——单例破了。
+
+```java
+public static Config getInstance() {
+    if (instance == null) {                // 第 1 次检查：要不要去排队
+        synchronized (Config.class) {
+            if (instance == null) {        // 第 2 次检查：进去后再确认"有人已经建好了吗"
+                instance = new Config();
+            }
+        }
+    }
+    return instance;
+}
+```
+
+内层 if 的作用：**拦住那些"进门之前判过 null、进门时发现已经有人建好了"的线程。**
+
+> **一句话分工：外层 if 提速（建好后不进锁），内层 if 保命（防重复 new）。**
+
+#### 第 4 步：为什么还要 volatile
+
+```java
+private static volatile Config instance;   // 少了 volatile，可能拿到"半成品"
+```
+
+> `new Config()` 分三步：①分配内存 ②初始化对象 ③把引用赋给 instance。JVM 可能把 ②③ 重排成 ③②——另一个线程在 ③ 之后、② 之前拿到 `instance`，此时对象还没初始化完，用了就炸。`volatile` 禁止这个重排。
+
+#### 最终完整代码
+
 ```java
 public class Config {
     private static volatile Config instance;    // ⚠️ 必须 volatile，防指令重排
@@ -98,9 +187,9 @@ public class Config {
     private Config() {}
 
     public static Config getInstance() {
-        if (instance == null) {                 // 第一次检查
+        if (instance == null) {                 // 第 1 次检查：性能（建好后不进锁）
             synchronized (Config.class) {
-                if (instance == null) {         // 第二次检查
+                if (instance == null) {         // 第 2 次检查：正确性（防重复 new）
                     instance = new Config();
                 }
             }
@@ -109,8 +198,6 @@ public class Config {
     }
 }
 ```
-
-> 为什么这里的 `volatile` 不能省？`new Config()` 分三步：①分配内存 ②初始化对象 ③把引用赋给 instance。JVM 可能把 ②③ 重排成 ③②——另一个线程在 ③ 之后、② 之前拿到 `instance`，此时对象还没初始化完，用了就炸。`volatile` 禁止这个重排。
 
 ---
 
@@ -121,6 +208,9 @@ public class Config {
 `ThreadLocal` 给**每个线程**一份**独立的变量副本**。同一个 `ThreadLocal` 对象，线程 A 往里面存的值，线程 B 看不到——各存各的，互不干扰。
 
 > 既然会"共享出问题"，那干脆**不共享**——这是和锁、volatile 完全相反的思路：后者是"共享但管好"，ThreadLocal 是"压根不共享"。
+
+> **关键认知：ThreadLocal 不是装数据的容器，是"钥匙"。** ⭐
+> 它自己肚子里不装值——值存在**每个线程对象内部的 Map**（`ThreadLocalMap`）里：key 是你的 `ThreadLocal` 对象，value 才是你存的数据。所以 `stamp.set("财务章")` 是"用 stamp 这把钥匙，打开**当前线程**自己的柜子，把值放进去"；`get()` 是从**当前线程**的柜子里取。钥匙（ThreadLocal 对象）只有一把，但每个线程的柜子各不相同——这才是"隔离"的机制来源。
 
 ### 方法速查表
 

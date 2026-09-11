@@ -1,6 +1,6 @@
 # 阶段 5：OOP 基础
 
-配套代码：`src/com/practice/oop/Person.java`、`OopDemo.java`
+配套代码：`src/com/practice/c06_oop/Person.java`、`OopDemo.java`
 
 ---
 
